@@ -13,7 +13,7 @@ description='''
 Adds Create trains, tracks, stations and Sable ships to Antique Atlas mod.
 '''
 authors="Mariz"
-logoFile = "assets/textures/icon.png"
+logoFile = "assets/antique_transport/icon.png"
 
 [[dependencies.antique_transport]]
 modId="connector"
@@ -33,5 +33,19 @@ side = "BOTH"
 modId = "minecraft"
 type = "required"
 versionRange = "1.21.1"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.antique_transport]]
+modId = "antique_atlas"
+mandatory = false
+versionRange = ">=3.0.0"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.antique_transport]]
+modId = "surveyor"
+type = "required"
+versionRange = ">=1.0.0"
 ordering = "NONE"
 side = "BOTH"

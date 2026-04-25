@@ -2,7 +2,7 @@ plugins {
     id 'fabric-loom' version '1.16-SNAPSHOT'
     id 'maven-publish'
 }
-version = project.mod_version
+version = "${project.mod_version}+${project.minecraft_version}"
 group = project.maven_group
 
 base {
