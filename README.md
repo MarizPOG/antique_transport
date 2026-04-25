@@ -38,7 +38,4 @@ Available on **Fabric** and **NeoForge** (via [Sinytra Connector](https://modrin
 
 - **Nameplate sync** — ship names set via in-world Nameplates from Aeronautics will automatically reflect on the map, no manual naming needed.
 
-***
-
-
-*Built with Java, caffeine, and an unreasonable amount of atan2 debugging.*
+> **Disclaimer:** This mod was built with significant AI assistance. The code and architecture were developed in collaboration with an AI coding assistant.
