@@ -49,14 +49,6 @@ public final class SableClientCompat {
     private static void registerCommands() {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             var root = ClientCommandManager.literal("antique_transport");
-
-            root.then(ClientCommandManager.literal("resetships").executes(ctx -> {
-                ShipCache.hiddenShips.clear();
-                ShipCache.save();
-                ctx.getSource().sendFeedback(Component.literal("Antique Transport: All hidden ships restored!"));
-                return 1;
-            }));
-
             root.then(ClientCommandManager.literal("markship").executes(ctx -> {
                 var player = ctx.getSource().getPlayer();
                 if (player == null) {
