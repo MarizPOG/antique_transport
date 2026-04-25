@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "antique_transport",
+  "version": "${version}",
+  "name": "Antique Trains",
+  "description": "Adds Create trains, tracks, stations and Sable ships to Antique Atlas mod.",
+  "authors": [
+    "Mariz"
+  ],
+  "contact": {
+    "discord": "Mariz"
+  },
+  "license": "LGPL-3.0",
+  "icon": "assets/antique_transport/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "client": [
+      "me.mariz.antique_transport.client.AntiqueTransportClient"
+    ],
+    "main": [
+      "me.mariz.antique_transport.AntiqueTransport"
+    ]
+  },
+  "mixins": [
+    "antique_transport.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.18",
+    "minecraft": "~1.21.1",
+    "java": ">=17",
+    "fabric-api": "*",
+    "antique_atlas": ">=3.0.0"
+  }
+}

@@ -1,0 +1,37 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="LGPL-3.0"
+
+[properties]
+"connector:placeholder"=true
+
+[[mods]]
+modId="antique_transport"
+version="1.0.0"
+displayName="Antique Transport"
+description='''
+Adds Create trains, tracks, stations and Sable ships to Antique Atlas mod.
+'''
+authors="Mariz"
+logoFile = "assets/textures/icon.png"
+
+[[dependencies.antique_transport]]
+modId="connector"
+mandatory=true
+versionRange="*"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.antique_transport]]
+modId = "neoforge"
+type = "required"
+versionRange = "*"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.antique_transport]]
+modId = "minecraft"
+type = "required"
+versionRange = "1.21.1"
+ordering = "NONE"
+side = "BOTH"
