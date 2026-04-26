@@ -22,6 +22,7 @@ public final class SableClientCompat {
         ShipNetworking.register();
         registerShipTextureReload();
         registerCommands();
+        ShipCache.tick();
     }
 
     private static void registerShipTextureReload() {

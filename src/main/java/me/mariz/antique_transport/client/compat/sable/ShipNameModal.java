@@ -43,7 +43,14 @@ public class ShipNameModal extends Component {
 
     public ShipNameModal(UUID shipId) {
         this.shipId = shipId;
-        this.selectedIcon = ShipCache.shipIcons.getOrDefault(shipId, AtlasOverlay.SHIP_ICON);
+        if (ShipCache.shipIcons.containsKey(shipId)) {
+            this.selectedIcon = ShipCache.shipIcons.get(shipId);
+        } else if (!ShipCache.SHIP_TEXTURES.isEmpty()) {
+            int idx = Math.abs(shipId.hashCode()) % ShipCache.SHIP_TEXTURES.size();
+            this.selectedIcon = ShipCache.SHIP_TEXTURES.get(idx);
+        } else {
+            this.selectedIcon = AtlasOverlay.SHIP_ICON;
+        }
     }
 
     private static final ResourceLocation ICON_HIDE =
@@ -86,7 +93,8 @@ public class ShipNameModal extends Component {
                 MODAL_W - 40, 18,
                 net.minecraft.network.chat.Component.literal("Ship name")
         );
-        textField.setValue(ShipCache.shipNames.getOrDefault(shipId, ""));
+        // Pre-fill: nameplate name > manual name > empty
+        textField.setValue(ShipCache.getInitialEditableShipName(shipId));
         textField.setFocused(true);
         textField.setBordered(true);
 

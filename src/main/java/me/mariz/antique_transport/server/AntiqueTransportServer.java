@@ -14,6 +14,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
+import static java.util.stream.Collectors.toSet;
+
 public final class AntiqueTransportServer {
     public static final Map<UUID, ShipDataPacket.ShipEntry> lastKnownPositions = new HashMap<>();
     public static final Map<UUID, String> serverShipNames = new HashMap<>();
@@ -29,28 +31,27 @@ public final class AntiqueTransportServer {
     }
 
     public static void tick(MinecraftServer server) {
-        if (++shipSyncTicker < 20) {
-            return;
-        }
+        if (++shipSyncTicker < 20) return;
         shipSyncTicker = 0;
 
-        Set<UUID> liveShips = new HashSet<>();
+        List<ShipDataPacket.ShipEntry> allKnownShips = new ArrayList<>(lastKnownPositions.values());
 
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (!ServerPlayNetworking.canSend(player, ShipDataPacket.TYPE)) {
-                continue;
+            if (!ServerPlayNetworking.canSend(player, ShipDataPacket.TYPE)) continue;
+
+            var visibleShips = SableShipCollector.collectShipsFor(player);
+            Set<UUID> visibleIds = visibleShips.stream().map(ShipDataPacket.ShipEntry::uuid).collect(toSet());
+
+            List<ShipDataPacket.ShipEntry> shipsForPlayer = new ArrayList<>(visibleShips);
+
+            for (ShipDataPacket.ShipEntry cached : allKnownShips) {
+                if (!visibleIds.contains(cached.uuid())) {
+                    shipsForPlayer.add(cached);
+                }
             }
 
-            var ships = SableShipCollector.collectShipsFor(player);
-            for (ShipDataPacket.ShipEntry entry : ships) {
-                liveShips.add(entry.uuid());
-                lastKnownPositions.put(entry.uuid(), entry);
-            }
-
-            ServerPlayNetworking.send(player, new ShipDataPacket(ships));
+            ServerPlayNetworking.send(player, new ShipDataPacket(shipsForPlayer));
         }
-
-        lastKnownPositions.keySet().removeIf(id -> !liveShips.contains(id));
     }
 
     public static void handleShipUpdate(MinecraftServer server, ShipUpdatePacket payload) {

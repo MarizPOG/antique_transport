@@ -10,6 +10,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.storage.LevelResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +46,18 @@ public class ShipCache {
         ClientLevel level = Minecraft.getInstance().level;
         return level != null ? level.getGameTime() : 0L;
     }
+    private static int saveTicker = 0;
 
+    public static void tick() {
+        if (Minecraft.getInstance().level == null) {
+            return;
+        }
+
+        if (++saveTicker >= 20) {
+            saveTicker = 0;
+            save();
+        }
+    }
     public static long lastServerPacketTime = -1;
 
     public static boolean isServerModPresent() {
@@ -61,10 +73,6 @@ public class ShipCache {
             positionCache.put(entry.uuid(), entry);
             cacheTimestamps.put(entry.uuid(), currentTick());
         }
-
-        positionCache.keySet().removeIf(id -> !liveShips.contains(id));
-        cacheTimestamps.keySet().removeIf(id -> !liveShips.contains(id));
-        shipScreenPositions.keySet().removeIf(id -> !liveShips.contains(id));
 
         lastServerPacketTime = currentTick();
     }
@@ -104,15 +112,19 @@ public class ShipCache {
 
     public static Path getSaveFile() {
         Minecraft mc = Minecraft.getInstance();
-        String serverName;
+
+        // Singleplayer: store inside the world save
         if (mc.getSingleplayerServer() != null) {
-            serverName = mc.getSingleplayerServer().getWorldData().getLevelName();
-        } else if (mc.getCurrentServer() != null) {
-            serverName = mc.getCurrentServer().ip
-                    .replace(":", "_").replace(".", "_");
-        } else {
-            serverName = "unknown";
+            Path worldRoot = mc.getSingleplayerServer().getWorldPath(LevelResource.ROOT);
+            return worldRoot.resolve("data").resolve("antique_transport_ships.dat");
         }
+
+        // Multiplayer: store in global client folder per server
+        String serverName = "unknown";
+        if (mc.getCurrentServer() != null) {
+            serverName = mc.getCurrentServer().ip.replace(":", "_").replace(".", "_");
+        }
+
         return mc.gameDirectory.toPath()
                 .resolve("antique_transport")
                 .resolve(serverName)
@@ -185,15 +197,23 @@ public class ShipCache {
             }
 
             positionCache.clear();
+            lastMovingYaw.clear();
+
             CompoundTag positions = tag.getCompound("cachedPositions");
             for (String key : positions.getAllKeys()) {
                 CompoundTag pos = positions.getCompound(key);
                 UUID uuid = UUID.fromString(key);
+                float yaw = pos.getFloat("yaw");
+
                 positionCache.put(uuid, new ShipDataPacket.ShipEntry(
                         uuid,
-                        pos.getDouble("x"), pos.getDouble("y"), pos.getDouble("z"),
-                        pos.getFloat("yaw")
+                        pos.getDouble("x"),
+                        pos.getDouble("y"),
+                        pos.getDouble("z"),
+                        yaw
                 ));
+
+                lastMovingYaw.put(uuid, yaw);
             }
 
             cacheTimestamps.clear();

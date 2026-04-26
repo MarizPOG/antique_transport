@@ -37,7 +37,7 @@ public class AntiqueTransport implements ModInitializer {
     }
 
     private void registerPersistence() {
-        ServerLifecycleEvents.SERVER_STARTED.register(AntiqueTransportServer::loadPositionCache);
+        ServerLifecycleEvents.SERVER_STARTING.register(AntiqueTransportServer::loadPositionCache);
         ServerLifecycleEvents.AFTER_SAVE.register((server, flush, savingAll) ->
                 AntiqueTransportServer.savePositionCache(server));
         ServerLifecycleEvents.SERVER_STOPPING.register(AntiqueTransportServer::savePositionCache);

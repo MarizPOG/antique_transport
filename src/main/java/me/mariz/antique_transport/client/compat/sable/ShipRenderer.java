@@ -23,7 +23,7 @@ public final class ShipRenderer {
     private ShipRenderer() {
     }
 
-    private record ShipRenderData(UUID uuid, double x, double y, double z, float yaw) {
+    private record ShipRenderData(UUID uuid, double x, double y, double z, float yaw, String subLevelName) {
     }
 
     public static void renderShips(AtlasOverlay.AtlasScreenRenderContext context) {
@@ -37,10 +37,12 @@ public final class ShipRenderer {
 
         // Step 1: Seed from cached/server positions
         for (ShipDataPacket.ShipEntry entry : ShipCache.positionCache.values()) {
+            float worldYaw = ShipCache.lastMovingYaw.getOrDefault(entry.uuid(), entry.yaw());
             toRender.put(entry.uuid(), new ShipRenderData(
                     entry.uuid(),
                     entry.x(), entry.y(), entry.z(),
-                    entry.yaw()
+                    worldYaw,
+                    null
             ));
         }
 
@@ -51,7 +53,7 @@ public final class ShipRenderer {
         );
 
         for (SubLevelAccess ship : SableCompanion.INSTANCE.getAllIntersecting(level, hugeBounds)) {
-            Pose3dc pose     = ship.logicalPose();
+            Pose3dc pose = ship.logicalPose();
             Pose3dc lastPose = ship.lastPose();
             var pos = pose.position();
             UUID id = ship.getUniqueId();
@@ -66,8 +68,15 @@ public final class ShipRenderer {
                 yaw = ShipUtils.computeCompassYaw(dvx, dvz);
                 ShipCache.lastMovingYaw.put(id, yaw);
             } else yaw = ShipCache.lastMovingYaw.getOrDefault(id, 0f);
-
-            toRender.put(id, new ShipRenderData(id, pos.x(), pos.y(), pos.z(), yaw));
+            String subLevelName = null;
+            try {
+                subLevelName = ship.getName();
+            } catch (Exception ignored) {
+            }
+            if (subLevelName != null && !subLevelName.isBlank()) {
+                ShipCache.subLevelNames.put(id, subLevelName);
+            }
+            toRender.put(id, new ShipRenderData(id, pos.x(), pos.y(), pos.z(), yaw, subLevelName));
 
             if (!ShipCache.isServerModPresent()) {
                 ShipCache.updateFromLocal(id, pos.x(), pos.y(), pos.z(), yaw);
