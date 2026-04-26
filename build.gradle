@@ -41,7 +41,9 @@ dependencies {
     // Config
     implementation "folk.sisby:kaleido-config:${project.kaleido_version}"
     include "folk.sisby:kaleido-config:${project.kaleido_version}"
-
+    modCompileOnly ("dev.simulated_team.simulated:simulated-neoforge-${minecraft_version}:${simulated_version}"){
+        transitive = false
+    }
 }
 
 processResources {

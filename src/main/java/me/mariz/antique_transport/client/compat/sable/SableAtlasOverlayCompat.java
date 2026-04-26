@@ -13,7 +13,7 @@ public final class SableAtlasOverlayCompat {
     }
 
     public static void onScreenRender(AtlasOverlay.AtlasScreenRenderContext context) {
-        if (!AntiqueTransportConfig.get().aeronautics.showShips) {
+        if (!AntiqueTransportConfig.get().sable.showShips) {
             return;
         }
 

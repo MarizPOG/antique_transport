@@ -79,7 +79,7 @@ public class AtlasOverlay implements folk.sisby.antique_atlas.gui.AtlasOverlay {
         }
 
         // Ships — config is the sole source of truth (no temporarilyHidden for ships)
-        if (ModCompat.SABLE && config.aeronautics.showShips) {
+        if (ModCompat.SABLE && config.sable.showShips) {
             List<Component> shipTooltip = getShipTooltip(context);
             if (shipTooltip != null) {
                 renderTooltip(context, shipTooltip);

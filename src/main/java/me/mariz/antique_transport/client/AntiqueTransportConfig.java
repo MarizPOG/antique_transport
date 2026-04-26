@@ -6,11 +6,14 @@ import net.fabricmc.loader.api.FabricLoader;
 
 @SuppressWarnings("CanBeFinal")
 public class AntiqueTransportConfig extends WrappedConfig {
-    @Comment("Create mod integration settings")
+    @Comment("Create integration settings")
     public CreateSection create = new CreateSection();
 
-    @Comment("Aeronautics/Sable integration settings")
-    public AeronauticsSection aeronautics = new AeronauticsSection();
+    @Comment("Sable integration settings")
+    public SableSection sable = new SableSection();
+
+    @Comment("Simulated integration settings")
+    public SimulatedSection simulated = new SimulatedSection();
 
     public static final class CreateSection implements Section {
         @Comment("Show train tracks on the atlas map")
@@ -23,7 +26,7 @@ public class AntiqueTransportConfig extends WrappedConfig {
         public boolean showStations = true;
     }
 
-    public static final class AeronauticsSection implements Section {
+    public static final class SableSection implements Section {
         @Comment("Show ships on the atlas map")
         public boolean showShips = true;
 
@@ -35,6 +38,11 @@ public class AntiqueTransportConfig extends WrappedConfig {
 
         @Comment("Show last seen time in the ship tooltip")
         public boolean showLastSeen = true;
+    }
+
+    public static final class SimulatedSection implements Section {
+        @Comment("Auto-save nameplate names to ships")
+        public boolean preferNameplateNames = true;
     }
 
     public static final AntiqueTransportConfig INSTANCE =

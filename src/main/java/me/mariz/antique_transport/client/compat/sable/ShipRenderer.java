@@ -141,9 +141,9 @@ public final class ShipRenderer {
         }
 
         List<Component> tooltip = new ArrayList<>();
-        tooltip.add(Component.literal(ShipCache.getDisplayName(data.uuid())));
+        tooltip.add(Component.literal(ShipCache.getResolvedShipName(data.uuid(), data.subLevelName)));
 
-        if (AntiqueTransportConfig.get().aeronautics.showShipHeight) {
+        if (AntiqueTransportConfig.get().sable.showShipHeight) {
             tooltip.add(
                     Component.literal("Altitude: " + (int) data.y() + " m")
                             .withStyle(style -> style.withColor(0xAAAAAA))
@@ -151,7 +151,7 @@ public final class ShipRenderer {
         }
 
         // Show "last seen" only for cached (non-live) data.
-        if (!ShipCache.isServerModPresent() && AntiqueTransportConfig.get().aeronautics.showLastSeen) {
+        if (!ShipCache.isServerModPresent() && AntiqueTransportConfig.get().sable.showLastSeen) {
             Long ts = ShipCache.cacheTimestamps.get(data.uuid());
             if (ts != null) {
                 var level = Minecraft.getInstance().level;

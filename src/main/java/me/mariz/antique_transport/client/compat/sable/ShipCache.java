@@ -41,6 +41,7 @@ public class ShipCache {
     public static final Map<UUID, ShipDataPacket.ShipEntry> positionCache = new HashMap<>();
     public static final Map<UUID, Long> cacheTimestamps = new HashMap<>();
     public static final Map<UUID, Float> lastMovingYaw = new HashMap<>();
+    public static final Map<UUID, String> subLevelNames = new HashMap<>();
 
     public static long currentTick() {
         ClientLevel level = Minecraft.getInstance().level;
@@ -99,7 +100,7 @@ public class ShipCache {
 
     public static boolean shouldRender(UUID uuid) {
         if (hiddenShips.contains(uuid)) return false;
-        if (AntiqueTransportConfig.get().aeronautics.autoShowAllShips) return true;
+        if (AntiqueTransportConfig.get().sable.autoShowAllShips) return true;
         return shipNames.containsKey(uuid);
     }
 
@@ -232,7 +233,41 @@ public class ShipCache {
             LOGGER.error("[Antique Transport] Failed to load ship data", e);
         }
     }
+    public static String getResolvedShipName(UUID uuid, String subLevelName) {
+        String manualName = shipNames.get(uuid);
 
+        if (manualName != null && !manualName.isBlank()) {
+            return manualName;
+        }
+
+        if (AntiqueTransportConfig.get().simulated.preferNameplateNames) {
+            String resolved = subLevelName;
+            if ((resolved == null || resolved.isBlank())) {
+                resolved = subLevelNames.get(uuid);
+            }
+
+            if (resolved != null && !resolved.isBlank()) {
+                return resolved;
+            }
+        }
+
+        return "Ship " + uuid.toString().substring(0, 8);
+    }
+    public static String getInitialEditableShipName(UUID uuid) {
+        String manualName = shipNames.get(uuid);
+        if (manualName != null && !manualName.isBlank()) {
+            return manualName;
+        }
+
+        if (AntiqueTransportConfig.get().simulated.preferNameplateNames) {
+            String resolved = subLevelNames.get(uuid);
+            if (resolved != null && !resolved.isBlank()) {
+                return resolved;
+            }
+        }
+
+        return "";
+    }
     public static String formatAge(long ticks) {
         long seconds = ticks / 20L;
         if (seconds < 60) return seconds + "s";

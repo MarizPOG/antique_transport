@@ -34,12 +34,12 @@ public class ShipBookmarkButton extends BookmarkButton {
 
     @Override
     public boolean isSelected() {
-        return AntiqueTransportConfig.get().aeronautics.showShips;
+        return AntiqueTransportConfig.get().sable.showShips;
     }
 
     @Override
     public void render(GuiGraphics context, int mouseX, int mouseY, float partialTick) {
-        if (AntiqueTransportConfig.get().aeronautics.showShips) {
+        if (AntiqueTransportConfig.get().sable.showShips) {
             iconTexture = ICON_HIDE_SHIPS;
             title = HIDE_SHIPS_TEXT;
         } else {
@@ -52,7 +52,7 @@ public class ShipBookmarkButton extends BookmarkButton {
     @Override
     public void onClick() {
         super.onClick();
-        AntiqueTransportConfig.get().aeronautics.showShips =
-                !AntiqueTransportConfig.get().aeronautics.showShips;
+        AntiqueTransportConfig.get().sable.showShips =
+                !AntiqueTransportConfig.get().sable.showShips;
     }
 }
