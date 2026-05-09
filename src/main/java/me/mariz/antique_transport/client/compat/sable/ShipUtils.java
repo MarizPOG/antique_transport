@@ -1,5 +1,7 @@
-package me.mariz.antique_transport.server;
+package me.mariz.antique_transport.client.compat.sable;
 
+import dev.ryanhcode.sable.companion.math.BoundingBox3d;
+import net.minecraft.world.level.Level;
 import org.joml.Quaterniondc;
 
 public final class ShipUtils {
@@ -48,4 +50,10 @@ public final class ShipUtils {
         float degrees = (float) Math.toDegrees(Math.atan2(vx, -vz));
         return (degrees + 360f) % 360f; // normalize to [0, 360)
     }
+    public static BoundingBox3d worldBounds(Level level) {
+        int minY = level.getMinBuildHeight();
+        int maxY = level.getMaxBuildHeight();
+        return new BoundingBox3d(-30_000_000, minY, -30_000_000, 30_000_000, maxY, 30_000_000);
+    }
+
 }

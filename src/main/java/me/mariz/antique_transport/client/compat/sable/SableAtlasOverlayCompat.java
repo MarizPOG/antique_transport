@@ -13,10 +13,8 @@ public final class SableAtlasOverlayCompat {
     }
 
     public static void onScreenRender(AtlasOverlay.AtlasScreenRenderContext context) {
-        if (!AntiqueTransportConfig.get().sable.showShips) {
-            return;
-        }
-
+        if (!AntiqueTransportConfig.get().sable.showShips) return;
+        if (!(Minecraft.getInstance().screen instanceof AtlasScreen)) return;
         ShipRenderer.renderShips(context);
     }
 
@@ -26,7 +24,7 @@ public final class SableAtlasOverlayCompat {
 
         for (Map.Entry<UUID, int[]> entry : ShipCache.shipScreenPositions.entrySet()) {
             int[] pos = entry.getValue();
-            if (Math.abs(mx - pos[0]) <= 8 && Math.abs(my - pos[1]) <= 8) {
+            if (Math.abs(mx - pos[0]) <= 8 && Math.abs(my - pos[1]) <= 8 && !ShipNameModal.isOpenOn(screen)) {
                 screen.addChild(new ShipNameModal(entry.getKey()));
                 return true;
             }
@@ -41,8 +39,11 @@ public final class SableAtlasOverlayCompat {
         if (clicked == null) {
             return false;
         }
-
-        screen.addChild(new ShipNameModal(clicked));
-        return true;
+        if(!ShipNameModal.isOpenOn(screen))
+        {
+            screen.addChild(new ShipNameModal(clicked));
+            return true;
+        }
+        return false;
     }
 }

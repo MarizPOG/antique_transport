@@ -28,7 +28,7 @@
   ],
   "depends": {
     "fabricloader": ">=0.18",
-    "minecraft": "~1.21.1",
+    "minecraft": "1.21.1",
     "java": ">=17",
     "fabric-api": "*",
     "antique_atlas": ">=3.0.0",

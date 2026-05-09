@@ -3,6 +3,7 @@ package me.mariz.antique_transport.client.compat.sable;
 import me.mariz.antique_transport.server.ShipNetworking;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.client.Minecraft;
@@ -22,7 +23,10 @@ public final class SableClientCompat {
         ShipNetworking.register();
         registerShipTextureReload();
         registerCommands();
-        ShipCache.tick();
+        registerTick();
+    }
+    private static void registerTick() {
+        ClientTickEvents.END_CLIENT_TICK.register(client -> ShipCache.tick());
     }
 
     private static void registerShipTextureReload() {
@@ -69,7 +73,7 @@ public final class SableClientCompat {
 
                 Minecraft.getInstance().execute(() -> {
                     var current = Minecraft.getInstance().screen;
-                    if (current instanceof folk.sisby.antique_atlas.gui.AtlasScreen atlasScreen) {
+                    if (current instanceof folk.sisby.antique_atlas.gui.AtlasScreen atlasScreen && !ShipNameModal.isOpenOn(atlasScreen)) {
                         atlasScreen.addChild(new ShipNameModal(nearestId));
                     } else {
                         ShipCache.pendingModalShipId = nearestId;

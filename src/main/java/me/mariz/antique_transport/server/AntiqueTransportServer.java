@@ -6,6 +6,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.storage.LevelResource;
 
@@ -14,40 +15,89 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
-import static java.util.stream.Collectors.toSet;
 
 public final class AntiqueTransportServer {
     public static final Map<UUID, ShipDataPacket.ShipEntry> lastKnownPositions = new HashMap<>();
     public static final Map<UUID, String> serverShipNames = new HashMap<>();
     public static final Map<UUID, String> serverShipIcons = new HashMap<>();
-
+    private static final Set<UUID> previouslyKnownShips = new HashSet<>();
     private static int shipSyncTicker = 0;
 
     private AntiqueTransportServer() {
     }
-
-    public static void register() {
-        SableShipCollector.registerChunkTracking();
-    }
-
     public static void tick(MinecraftServer server) {
         if (++shipSyncTicker < 20) return;
         shipSyncTicker = 0;
 
+        Map<ServerLevel, List<ShipDataPacket.ShipEntry>> shipsByLevel = new HashMap<>();
+        Set<UUID> currentExistingShips = new HashSet<>();
+
+        for (ServerLevel level : server.getAllLevels()) {
+            List<ShipDataPacket.ShipEntry> ships = SableShipCollector.collectShipsFor(level);
+            shipsByLevel.put(level, ships);
+            ships.forEach(e -> {
+                lastKnownPositions.put(e.uuid(), e);
+                currentExistingShips.add(e.uuid());
+            });
+        }
+
+        // Detection of removed sublevels. Did the ship disappear near player
+        Set<UUID> removed = new HashSet<>();
+        for (UUID id : previouslyKnownShips) {
+            if (currentExistingShips.contains(id)) continue;
+
+            ShipDataPacket.ShipEntry cached = lastKnownPositions.get(id);
+            if (cached == null) { removed.add(id); continue; }
+
+            // Any player nearby a ship
+            boolean withinRenderDistance = false;
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                int renderDistanceBlocks = player.server.getPlayerList().getViewDistance() * 16;
+                double safeRadius = renderDistanceBlocks * 0.75; // assuming that the ship got broken/ disassembled
+
+                double dx = cached.x() - player.getX();
+                double dz = cached.z() - player.getZ();
+                double distXZ = Math.sqrt(dx * dx + dz * dz);
+
+                if (distXZ < safeRadius) {
+                    withinRenderDistance = true;
+                    break;
+                }
+            }
+
+            if (withinRenderDistance) {
+                removed.add(id);
+            }
+        }
+
+        for (UUID id : removed) {
+            lastKnownPositions.remove(id);
+            serverShipNames.remove(id);
+            serverShipIcons.remove(id);
+            ShipSyncPacket removePacket = new ShipSyncPacket(id, null, null, true);
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                if (ServerPlayNetworking.canSend(player, ShipSyncPacket.TYPE))
+                    ServerPlayNetworking.send(player, removePacket);
+            }
+        }
+
+        previouslyKnownShips.clear();
+        previouslyKnownShips.addAll(currentExistingShips);
+        // Send ships to players
         List<ShipDataPacket.ShipEntry> allKnownShips = new ArrayList<>(lastKnownPositions.values());
 
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (!ServerPlayNetworking.canSend(player, ShipDataPacket.TYPE)) continue;
 
-            var visibleShips = SableShipCollector.collectShipsFor(player);
-            Set<UUID> visibleIds = visibleShips.stream().map(ShipDataPacket.ShipEntry::uuid).collect(toSet());
+            List<ShipDataPacket.ShipEntry> visibleShips =
+                    shipsByLevel.getOrDefault(player.serverLevel(), List.of());
+            Set<UUID> visibleIds = new HashSet<>();
+            visibleShips.forEach(e -> visibleIds.add(e.uuid()));
 
             List<ShipDataPacket.ShipEntry> shipsForPlayer = new ArrayList<>(visibleShips);
-
             for (ShipDataPacket.ShipEntry cached : allKnownShips) {
-                if (!visibleIds.contains(cached.uuid())) {
+                if (!visibleIds.contains(cached.uuid()))
                     shipsForPlayer.add(cached);
-                }
             }
 
             ServerPlayNetworking.send(player, new ShipDataPacket(shipsForPlayer));
@@ -84,20 +134,23 @@ public final class AntiqueTransportServer {
     }
 
     public static void syncAllKnownShipsTo(ServerPlayer player) {
-        if (!ServerPlayNetworking.canSend(player, ShipSyncPacket.TYPE)) {
-            return;
+        if (!ServerPlayNetworking.canSend(player, ShipSyncPacket.TYPE)) return;
+
+        // Send icons and names of ships
+        for (Map.Entry<UUID, String> entry : serverShipNames.entrySet()) {
+            ServerPlayNetworking.send(player, new ShipSyncPacket(
+                    entry.getKey(),
+                    entry.getValue(),
+                    serverShipIcons.get(entry.getKey()),
+                    false
+            ));
         }
 
-        for (Map.Entry<UUID, String> entry : serverShipNames.entrySet()) {
-            ServerPlayNetworking.send(
-                    player,
-                    new ShipSyncPacket(
-                            entry.getKey(),
-                            entry.getValue(),
-                            serverShipIcons.get(entry.getKey()),
-                            false
-                    )
-            );
+        // Send last known positions (to ShipDataPacket) —
+        if (ServerPlayNetworking.canSend(player, ShipDataPacket.TYPE)
+                && !lastKnownPositions.isEmpty()) {
+            ServerPlayNetworking.send(player,
+                    new ShipDataPacket(new ArrayList<>(lastKnownPositions.values())));
         }
     }
 
@@ -128,7 +181,6 @@ public final class AntiqueTransportServer {
             tag.put("shipIcons", iconsTag);
 
             NbtIo.write(tag, file);
-            AntiqueTransport.LOGGER.info("[Antique Transport] Saved {} ship positions", lastKnownPositions.size());
         } catch (IOException e) {
             AntiqueTransport.LOGGER.error("[Antique Transport] Failed to save position cache", e);
         }

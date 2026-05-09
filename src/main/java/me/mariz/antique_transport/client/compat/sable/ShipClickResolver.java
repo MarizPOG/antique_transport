@@ -17,8 +17,8 @@ public final class ShipClickResolver {
         int worldZ = screen.screenYToWorldZ(mouseY);
 
         BoundingBox3d clickArea = new BoundingBox3d(
-                worldX - 16, -64, worldZ - 16,
-                worldX + 16, 320, worldZ + 16
+                worldX - 8, -64, worldZ - 8,
+                worldX + 8, 1000, worldZ + 8
         );
 
         for (SubLevelAccess ship : SableCompanion.INSTANCE.getAllIntersecting(level, clickArea)) {

@@ -30,7 +30,7 @@ public class AtlasOverlay implements folk.sisby.antique_atlas.gui.AtlasOverlay {
 
     @Override
     public void onScreenRender(folk.sisby.antique_atlas.gui.AtlasOverlay.AtlasScreenRenderContext context) {
-        if (ShipCache.pendingModalShipId != null) {
+        if (ShipCache.pendingModalShipId != null && !ShipNameModal.isOpenOn(new AtlasScreen())) {
             context.screen().addChild(new ShipNameModal(ShipCache.pendingModalShipId));
             ShipCache.pendingModalShipId = null;
         }

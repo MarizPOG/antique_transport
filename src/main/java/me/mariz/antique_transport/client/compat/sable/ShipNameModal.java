@@ -1,8 +1,12 @@
 package me.mariz.antique_transport.client.compat.sable;
 
+import folk.sisby.antique_atlas.gui.AtlasScreen;
 import folk.sisby.antique_atlas.gui.core.Component;
 import me.mariz.antique_transport.client.AtlasOverlay;
+import me.mariz.antique_transport.client.compat.ModCompat;
+import me.mariz.antique_transport.server.ShipDataPacket;
 import me.mariz.antique_transport.server.ShipNetworking;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -16,14 +20,14 @@ import java.util.UUID;
 public class ShipNameModal extends Component {
 
     private static final int MODAL_W = 300;
-    private static final int MODAL_H = 195;
+    private static final int MODAL_H = 235;
 
     private static final int TILE_SIZE = 32;
     private static final int ICON_SIZE = 30;
     private static final int TILE_PAD = (TILE_SIZE - ICON_SIZE) / 2;
     private static final int TILE_GAP = 3;
     private static final int ICONS_PER_ROW = 7;
-    private static final int TRASH_SIZE = 26;
+    private static final int HIDE_SIZE = 26;
 
     // Warm brown tile palette (AA4 style)
     private static final int COLOR_TILE_NORMAL = 0xFF6B5A3E;
@@ -36,10 +40,31 @@ public class ShipNameModal extends Component {
 
     private Button btnDone;
     private Button btnCancel;
+    private Button btnTeleport;
     private EditBox textField;
 
     private int iconScrollOffset = 0;
     private ResourceLocation selectedIcon;
+
+    private boolean diagramEnabled;
+    private int diagramZoomIndex; // 0 = 8 blocks, 6 = 32 chunks
+
+    private static final float[] ZOOM_LEVELS = {
+            1.0f,       // 8 blocks (tileChunks=1)
+            0.5f,       // 1 chunk (tileChunks=2)
+            0.25f,      // 2 chunks (tileChunks=4)
+            0.125f,     // 4 chunks (tileChunks=8)
+            0.0625f,    // 8 chunks (tileChunks=16)
+            0.03125f,   // 16 chunks (tileChunks=32)
+            0.015625f   // 32 chunks (tileChunks=64)
+    };
+    private static final String[] ZOOM_LABELS = {
+            "8 blocks", "1 chunk", "2 chunks", "4 chunks",
+            "8 chunks", "16 chunks", "32 chunks"
+    };
+
+    
+    private int diagramRowY() { return tilesY() + TILE_SIZE + 12; }
 
     public ShipNameModal(UUID shipId) {
         this.shipId = shipId;
@@ -51,6 +76,8 @@ public class ShipNameModal extends Component {
         } else {
             this.selectedIcon = AtlasOverlay.SHIP_ICON;
         }
+        this.diagramEnabled = ShipCache.isDiagramEnabled(shipId);
+        this.diagramZoomIndex = ppbToIndex(ShipCache.getDiagramMinPpb(shipId));
     }
 
     private static final ResourceLocation ICON_HIDE =
@@ -74,12 +101,23 @@ public class ShipNameModal extends Component {
         return modalY() + 72;
     }
 
-    private int trashX() {
-        return modalX() + MODAL_W - TRASH_SIZE - 10;
+    private int hideX() {
+        return modalX() + MODAL_W - HIDE_SIZE - 10;
     }
 
-    private int trashY() {
+    private int hideY() {
         return modalY() + 5;
+    }
+
+    public static boolean isOpenOn(folk.sisby.antique_atlas.gui.AtlasScreen screen) {
+        return screen.getChildren().stream()
+                .anyMatch(child -> child instanceof ShipNameModal);
+    }
+    public static boolean shouldBlockAtlasKey(AtlasScreen screen) {
+        return screen.getChildren().stream()
+                .filter(child -> child instanceof ShipNameModal)
+                .map(child -> (ShipNameModal) child)
+                .anyMatch(modal -> modal.textField != null && modal.textField.isFocused());
     }
 
     @Override
@@ -107,13 +145,35 @@ public class ShipNameModal extends Component {
                 net.minecraft.network.chat.Component.translatable("gui.cancel"),
                 btn -> closeChild()
         ).bounds(width / 2 + 6, my + MODAL_H - 26, 76, 18).build();
+        // Teleport – only for ops
+        var mc = Minecraft.getInstance();
+        boolean isOp = mc.player != null && mc.player.hasPermissions(2);
+        boolean hasPos = ShipCache.getRenderPosition(shipId) != null;
+
+        if (isOp && hasPos) {
+            btnTeleport = Button.builder(
+                            net.minecraft.network.chat.Component.literal("Teleport"),
+                            btn -> {
+                                ShipNetworking.sendTeleportToShip(shipId);
+                                closeChild();
+                            })
+                    .bounds(modalX() + 10, modalY() + 10, 76, 18)
+                    .build();
+        }
     }
 
     private void commit() {
-        ShipCache.shipNames.put(shipId, textField.getValue());
+        String name = textField.getValue().trim();
+        ShipCache.shipNames.put(shipId, name);
         ShipCache.shipIcons.put(shipId, selectedIcon);
+        ShipDataPacket.ShipEntry currentPos = ShipCache.positionCache.get(shipId);
+        if (currentPos != null) {
+            ShipCache.lastKnownPositions.put(shipId, currentPos);
+        }
         ShipCache.save();
         ShipNetworking.sendUpdate(shipId, textField.getValue(), selectedIcon.toString());
+        ShipCache.shipDiagramEnabled.put(shipId, diagramEnabled);
+        ShipCache.shipDiagramMinPpb.put(shipId, ZOOM_LEVELS[diagramZoomIndex]);
         closeChild();
     }
 
@@ -132,7 +192,7 @@ public class ShipNameModal extends Component {
 
         // Title & labels
         g.drawCenteredString(font, "Name your ship", width / 2, my + 10, 0xFFFFFFFF);
-        g.drawString(font, "Icon:", mx + 20, my + 58, 0xB0986A, false);
+        g.drawString(font, "Icon:", mx + 20, my + 58, 0xFFFFFFFF, false);
 
         textField.render(g, mouseX, mouseY, delta);
 
@@ -165,22 +225,22 @@ public class ShipNameModal extends Component {
                     ICON_SIZE, ICON_SIZE);
         }
 
-        // Trash button
-        int trashX = trashX();
-        int trashY = trashY();
-        boolean trashHovered = mouseX >= trashX && mouseX < trashX + TRASH_SIZE
-                && mouseY >= trashY && mouseY < trashY + TRASH_SIZE;
+        // Hide button
+        int hideX = hideX();
+        int hideY = hideY();
+        boolean hideHovered = mouseX >= hideX && mouseX < hideX + HIDE_SIZE
+                && mouseY >= hideY && mouseY < hideY + HIDE_SIZE;
 
-        if (trashHovered) {
-            g.fill(trashX, trashY,
-                    trashX + TRASH_SIZE, trashY + TRASH_SIZE,
+        if (hideHovered) {
+            g.fill(hideX, hideY,
+                    hideX + HIDE_SIZE, hideY + HIDE_SIZE,
                     0x44FFFFFF);
         }
 
         boolean isHidden = ShipCache.hiddenShips.contains(shipId);
         ResourceLocation trashIcon = isHidden ? ICON_SHOW : ICON_HIDE;
-        g.blit(trashIcon, trashX, trashY, 0, 0,
-                TRASH_SIZE, TRASH_SIZE, TRASH_SIZE, TRASH_SIZE);
+        g.blit(trashIcon, hideX, hideY, 0, 0,
+                HIDE_SIZE, HIDE_SIZE, HIDE_SIZE, HIDE_SIZE);
 
         // Scroll arrows
         if (iconScrollOffset > 0) {
@@ -189,10 +249,55 @@ public class ShipNameModal extends Component {
         if (iconScrollOffset + ICONS_PER_ROW < ShipCache.SHIP_TEXTURES.size()) {
             g.drawString(font, "►", mx + MODAL_W - 14, tilesY + TILE_SIZE / 2 - 4, 0xB0986A, false);
         }
+        if(ModCompat.SIMULATED)
+        {
+            // Checkbox
+            int drY  = diagramRowY();
+            int drX  = modalX() + 20;
+            int drMx = modalX() + MODAL_W - 20;
+            boolean chkHov = mouseX >= drX && mouseX < drX + 12
+                    && mouseY >= drY && mouseY < drY + 12;
+            g.fill(drX - 1, drY - 1, drX + 13, drY + 13, COLOR_BORDER);
+            g.fill(drX, drY, drX + 12, drY + 12,
+                    chkHov ? COLOR_TILE_HOVER : COLOR_TILE_NORMAL);
+            if (diagramEnabled) {
+                g.drawCenteredString(font, "✔", drX + 6, drY + 2, 0xFFFFFFFF);
+            }
+            g.drawString(font, "Ship preview", drX + 16, drY + 2, 0xFFFFFFFF, false);
+
+            // Slider
+            if (diagramEnabled) {
+                int sliderX = drX;
+                int sliderY = drY + 18;
+
+                // Left button
+                boolean leftHov = mouseX >= sliderX && mouseX < sliderX + 12
+                        && mouseY >= sliderY && mouseY < sliderY + 12;
+                g.fill(sliderX - 1, sliderY - 1, sliderX + 13, sliderY + 13, COLOR_BORDER);
+                g.fill(sliderX, sliderY, sliderX + 12, sliderY + 12,
+                        leftHov ? COLOR_TILE_HOVER : COLOR_TILE_NORMAL);
+                g.drawCenteredString(font, "◄", sliderX + 6, sliderY + 2, 0xFFFFFF);
+
+                // Value
+                String ppbLabel = "Min zoom: " + ZOOM_LABELS[diagramZoomIndex];
+                g.drawCenteredString(font, ppbLabel, modalX() + MODAL_W / 2, sliderY + 2, 0xFFFFFF);
+
+                // Right button
+                int rightX = drMx - 12;
+                boolean rightHov = mouseX >= rightX && mouseX < rightX + 12
+                        && mouseY >= sliderY && mouseY < sliderY + 12;
+                g.fill(rightX - 1, sliderY - 1, rightX + 13, sliderY + 13, COLOR_BORDER);
+                g.fill(rightX, sliderY, rightX + 12, sliderY + 12,
+                        rightHov ? COLOR_TILE_HOVER : COLOR_TILE_NORMAL);
+                g.drawCenteredString(font, "►", rightX + 6, sliderY + 2, 0xFFFFFF);
+            }
+        }
+
 
         // Buttons
         if (btnDone != null) btnDone.render(g, mouseX, mouseY, delta);
         if (btnCancel != null) btnCancel.render(g, mouseX, mouseY, delta);
+        if (btnTeleport != null) btnTeleport.render(g, mouseX, mouseY, delta);
 
         super.render(g, mouseX, mouseY, delta);
     }
@@ -201,15 +306,48 @@ public class ShipNameModal extends Component {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (btnDone != null && btnDone.mouseClicked(mouseX, mouseY, button)) return true;
         if (btnCancel != null && btnCancel.mouseClicked(mouseX, mouseY, button)) return true;
+        if (btnTeleport != null) btnTeleport.mouseClicked(mouseX, mouseY, button);
 
-        // Trash button
-        int trashX = trashX();
-        int trashY = trashY();
-        if (mouseX >= trashX && mouseX < trashX + TRASH_SIZE
-                && mouseY >= trashY && mouseY < trashY + TRASH_SIZE) {
+        // Hide button
+        int hideX = hideX();
+        int hideY = hideY();
+        if (mouseX >= hideX && mouseX < hideX + HIDE_SIZE
+                && mouseY >= hideY && mouseY < hideY + HIDE_SIZE) {
             toggleVisibility();
             return true;
         }
+        if(ModCompat.SIMULATED)
+        {
+            // Checkbox
+            int drY = diagramRowY();
+            int drX = modalX() + 20;
+            if (mouseX >= drX && mouseX < drX + 12
+                    && mouseY >= drY && mouseY < drY + 12) {
+                diagramEnabled = !diagramEnabled;
+                return true;
+            }
+
+            // Slider
+            if (diagramEnabled) {
+                int sliderY = drY + 18;
+                int drMx    = modalX() + MODAL_W - 20;
+
+                // Left
+                if (mouseX >= drX && mouseX < drX + 12
+                        && mouseY >= sliderY && mouseY < sliderY + 12) {
+                    diagramZoomIndex = Math.max(0, diagramZoomIndex - 1);
+                    return true;
+                }
+                // Right
+                int rightX = drMx - 12;
+                if (mouseX >= rightX && mouseX < rightX + 12
+                        && mouseY >= sliderY && mouseY < sliderY + 12) {
+                    diagramZoomIndex = Math.min(ZOOM_LEVELS.length - 1, diagramZoomIndex + 1);
+                    return true;
+                }
+            }
+        }
+
 
         // Icon tiles
         int tilesY = tilesY();
@@ -268,5 +406,15 @@ public class ShipNameModal extends Component {
             ShipCache.hiddenShips.add(shipId);
         }
         ShipCache.save();
+    }
+    private static int ppbToIndex(float ppb) {
+        for (int i = 0; i < ZOOM_LEVELS.length; i++) {
+            if (ppb >= ZOOM_LEVELS[i]) return i;
+        }
+        return ZOOM_LEVELS.length - 1;
+    }
+    @Override
+    public void closeChild() {
+        super.closeChild();
     }
 }

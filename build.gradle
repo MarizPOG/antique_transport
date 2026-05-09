@@ -22,6 +22,10 @@ repositories {
         name = "RyanHCode Maven"
         url = "https://maven.ryanhcode.dev/releases"
     }
+    maven {
+        name = 'BlameJared Maven (CrT / Bookshelf)'
+        url = 'https://maven.blamejared.com'
+    }
 }
 
 dependencies {
@@ -32,16 +36,21 @@ dependencies {
     modImplementation "folk.sisby:antique-atlas:${project.antique_atlas_version}"
     modImplementation "folk.sisby:surveyor:${project.surveyor_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    modImplementation "folk.sisby:kaleido-config:${project.kaleido_version}"
+
     modCompileOnly("com.simibubi.create:create-${project.minecraft_version}:${project.create_version}:slim") {
         transitive = false
     }
-   modCompileOnly("net.createmod.ponder:ponder-neoforge:${project.ponder_version}+mc${minecraft_version}")
-
+    modCompileOnly("net.createmod.ponder:ponder-neoforge:${project.ponder_version}+mc${minecraft_version}")
     include(modApi("dev.ryanhcode.sable-companion:sable-companion-fabric-${project.minecraft_version}:${project.sable_companion_version}"))
-    // Config
-    implementation "folk.sisby:kaleido-config:${project.kaleido_version}"
-    include "folk.sisby:kaleido-config:${project.kaleido_version}"
     modCompileOnly ("dev.simulated_team.simulated:simulated-neoforge-${minecraft_version}:${simulated_version}"){
+        transitive = false
+    }
+    modImplementation("foundry.veil:veil-fabric-${project.minecraft_version}:${project.veil_version}") {
+        exclude group: "maven.modrinth"
+        exclude group: "me.fallenbreath"
+    }
+    modCompileOnly("dev.ryanhcode.sable:sable-fabric-${project.minecraft_version}:${project.sable_version}"){
         transitive = false
     }
 }

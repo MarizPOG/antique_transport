@@ -1,10 +1,18 @@
 package me.mariz.antique_transport.client;
 
+import dev.ryanhcode.sable.companion.SableCompanion;
+import dev.ryanhcode.sable.companion.SubLevelAccess;
+import dev.ryanhcode.sable.sublevel.ClientSubLevel;
 import folk.sisby.antique_atlas.gui.AtlasRenderer;
 import me.mariz.antique_transport.client.compat.ModCompat;
 import me.mariz.antique_transport.client.compat.create.CreateClientCompat;
 import me.mariz.antique_transport.client.compat.sable.SableClientCompat;
+import me.mariz.antique_transport.client.compat.sable.ShipCache;
+import me.mariz.antique_transport.client.compat.sable.ShipUtils;
+import me.mariz.antique_transport.client.compat.simulated.ShipDiagramRenderer;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +36,25 @@ public class AntiqueTransportClient implements ClientModInitializer {
 
         if (ModCompat.SABLE) {
             SableClientCompat.init();
+        }
+        if(ModCompat.SIMULATED) {
+            ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
+                    client.execute(() -> {
+                        ShipDiagramRenderer.freeAll();
+                        ShipCache.onDisconnect();
+                    }));
+            net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents.LAST.register(context -> {
+                var level = Minecraft.getInstance().level;
+                if (level == null) return;
+
+                float pt = context.tickCounter().getGameTimeDeltaPartialTick(true);
+
+                for (SubLevelAccess ship : SableCompanion.INSTANCE.getAllIntersecting(level, ShipUtils.worldBounds(level))) {
+                    if (ship instanceof ClientSubLevel sub) {
+                        ShipDiagramRenderer.renderDiagram(sub.getUniqueId(), sub, pt);
+                    }
+                }
+            });
         }
     }
 }

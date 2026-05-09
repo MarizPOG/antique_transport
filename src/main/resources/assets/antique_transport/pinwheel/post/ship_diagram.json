@@ -1,0 +1,11 @@
+{
+  "stages": [
+    {
+      "type": "veil:blit",
+      "shader": "antique_transport:ship_diagram",
+      "in":  "antique_transport:ship_in",
+      "out": "antique_transport:ship_out",
+      "clear": true
+    }
+  ]
+}
